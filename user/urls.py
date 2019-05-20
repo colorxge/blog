@@ -10,4 +10,5 @@ from .views import *
 
 urlpatterns = [
     url(r'^reg$', reg),
+    url(r'^login$', login),
 ]

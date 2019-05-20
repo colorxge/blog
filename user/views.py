@@ -49,3 +49,29 @@ def reg(request: HttpRequest):
         logging.info(e)
         print(e, '____________')
         return HttpResponseBadRequest() # 返回实例，不是异常类
+
+
+def login(request: HttpRequest):
+    payload = simplejson.dumps(request.body) # 获取登陆信息
+    try:
+        email = payload['email']
+        user = User.objects.filter(email=email).get()
+
+        if bcrypt.checkpw(payload['password'].encode(), user.password.encode()):
+            token = get_token(user.id)
+            print(token)
+            ret = JsonResponse({
+                'user': {
+                    'user_id': user.id,
+                    'name': user.name,
+                    'eamil': user.email,
+                }, 'token': token
+            })
+            ret.set_cookie('Jwt', token)
+            return ret
+        else:
+            return HttpResponseBadRequest()
+
+    except Exception as e:
+        print(e)
+        return HttpResponseBadRequest()
