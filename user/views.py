@@ -10,14 +10,41 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(thread)d %(message)s")
 # Create your views here.
 
+AUTH_EXPIRE = 8 * 60 * 60
 
 def get_token(user_id):
     '''生成token'''
     return jwt.encode({     # 加入时间戳，判断是否重发token或重新登录
         'user_id': user_id,
-        'timestamp': int(datetime.datetime.now().timestamp())   # 取整
+        'timestamp': int(datetime.datetime.now().timestamp()) + AUTH_EXPIRE  # 取整
     }, settings.SECRET_KEY, 'HS256').decode()       # 字符串
 
+
+def authenticate(view):
+    def wapper(request: HttpRequest):
+        # 自定义header jwt
+        payload = request.META.get('HTTP_JWT')  # 会被加大写前缀HTTP_且全大写
+        if not payload: # None  没有拿到，认证失败
+            return HttpResponse(status=401)
+        try: # 解码，同时验证过期时间
+            payload = jwt.decode(payload, key=settings.SECRET_KEY, algorithms=['HS256'])
+            print(payload)
+        except Exception as e:
+            print(e)
+            return HttpResponse(status=401)
+
+        try:
+            user_id = payload.get('user_id', -1)
+            user = User.objects.filter(pk=user_id).get()
+            request.user = user  # 如果正确，则注入user
+            print('-' * 30)
+        except Exception as e:
+            print(e)
+            return HttpResponse(status=401)
+
+        ret = view(request)
+        return ret
+    return wapper
 
 def reg(request: HttpRequest):
     payload = simplejson.loads(request.body)
